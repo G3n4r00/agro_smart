@@ -834,7 +834,6 @@ def loop_geracao_local() -> None:
 
 def loop_consumidor_kafka() -> None:
     from kafka import KafkaConsumer
-    from kafka.errors import NoBrokersAvailable
 
     consumer = None
     for tentativa in range(1, 30):
@@ -849,7 +848,7 @@ def loop_consumidor_kafka() -> None:
             )
             print(f"[CONSUMER] Conectado ao Kafka em {KAFKA_BOOT}")
             break
-        except NoBrokersAvailable:
+        except Exception:
             print(f"[CONSUMER] Broker indisponível — tentativa {tentativa}/30. Aguardando 5s…")
             time.sleep(5)
 

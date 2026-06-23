@@ -14,11 +14,11 @@ import json
 import os
 import time
 
+import random
+
 from kafka import KafkaProducer
-from kafka.errors import NoBrokersAvailable
 
 from gerador import gerar_leitura_normal, gerar_leitura_forcada
-import random
 
 BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 TOPIC     = os.getenv("KAFKA_TOPIC", "sensor_leituras")
@@ -35,7 +35,7 @@ def criar_producer(retries: int = 20, delay: int = 5) -> KafkaProducer:
             )
             print(f"[PRODUCER] Conectado ao Kafka em {BOOTSTRAP}")
             return p
-        except NoBrokersAvailable:
+        except Exception:
             print(f"[PRODUCER] Broker indisponível — tentativa {tentativa}/{retries}. Aguardando {delay}s…")
             time.sleep(delay)
     raise RuntimeError(f"[PRODUCER] Falha ao conectar ao Kafka após {retries} tentativas.")
