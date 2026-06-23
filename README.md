@@ -81,7 +81,7 @@ docker compose up --build
 
 # Acessar:
 # Dashboard:  http://localhost:5000
-# Kafka UI:   http://localhost:8080
+# Kafka UI:   http://localhost:9000
 ```
 
 Para parar:
