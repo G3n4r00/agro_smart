@@ -678,8 +678,8 @@ HTML = """<!DOCTYPE html>
     const liRec   = (a.recomendacoes || []).map(r => '<li>' + r + '</li>').join('');
     const liAcoes = (a.acoes_automaticas || []).map(ac => '<li>&#10003; ' + ac + '</li>').join('');
 
-    const html = '<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n<meta charset="UTF-8">\n' +
-'<title>Relatório — Talhão ' + a.talhao_id + '</title>\n' +
+    const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+'<title>Relatorio Talhao ' + a.talhao_id + '</title>' +
 '<style>body{font-family:system-ui;background:#f0f4f0;padding:2rem 1rem;color:#1a2e1a}' +
 '.page{max-width:720px;margin:0 auto;box-shadow:0 4px 24px rgba(0,0,0,.12);border-radius:12px;overflow:hidden}' +
 '.rel-header{background:#2d6a2d;color:#fff;padding:1.5rem 2rem}' +
@@ -688,12 +688,12 @@ HTML = """<!DOCTYPE html>
 '.secao{background:#fff;padding:1.25rem 2rem;border-bottom:1px solid #eee}' +
 '.secao h3{font-size:.78rem;font-weight:800;text-transform:uppercase;color:#555;margin-bottom:.85rem}' +
 '.secao li{font-size:.9rem;padding:.55rem .8rem;background:#f8f8f8;border-radius:6px;border-left:3px solid ' + c.borda + ';margin-bottom:.4rem;list-style:none}' +
-'</style></head><body>\n' +
+'</style></head><body>' +
 '<div class="page">' +
-'<div class="rel-header"><h1>🌱 Relatório de Alerta AgroSmart</h1><p>Gerado em ' + agora + '</p></div>' +
-'<div class="card-principal"><span class="tag-nivel">' + a.nivel + '</span> <strong>' + a.regra + ' — Talhão ' + a.talhao_id + '</strong><p>' + a.detalhe + '</p><small>' + a.timestamp + '</small></div>' +
-'<div class="secao"><h3>Recomendações</h3><ol>' + liRec + '</ol></div>' +
-'<div class="secao"><h3>Ações Automáticas</h3><ul>' + liAcoes + '</ul></div>' +
+'<div class="rel-header"><h1>Relatorio de Alerta AgroSmart</h1><p>Gerado em ' + agora + '</p></div>' +
+'<div class="card-principal"><span class="tag-nivel">' + a.nivel + '</span> <strong>' + a.regra + ' - Talhao ' + a.talhao_id + '</strong><p>' + a.detalhe + '</p><small>' + a.timestamp + '</small></div>' +
+'<div class="secao"><h3>Recomendacoes</h3><ol>' + liRec + '</ol></div>' +
+'<div class="secao"><h3>Acoes Automaticas</h3><ul>' + liAcoes + '</ul></div>' +
 '</div></body></html>';
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
