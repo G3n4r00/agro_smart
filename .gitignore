@@ -1,4 +1,19 @@
-__pycache__
+__pycache__/
+*.py[cod]
+*.pyo
+
 dados/
-dados
 *.csv
+
+# Docker
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

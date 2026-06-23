@@ -1,30 +1,51 @@
-# Agro Monitor
+# AgroSmart — Monitoramento Agrícola
 
-> Sistema de monitoramento agrícola em tempo real com geração automática de dados, motor de regras booleanas e dashboard web.
+> Sistema de monitoramento agrícola em tempo real com pipeline de streaming Kafka, containerização Docker e motor de regras booleanas.
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey)
-![Pandas](https://img.shields.io/badge/Pandas-2.x-green)
+![Kafka](https://img.shields.io/badge/Apache_Kafka-7.6-orange)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 ![Status](https://img.shields.io/badge/Status-Ativo-brightgreen)
 
 ---
 
 ## Visão Geral
 
-Projeto desenvolvido como atividade acadêmica de automação agrícola. 
-O sistema simula uma rede de sensores distribuídos em talhões de uma propriedade rural: uma thread em background gera leituras realistas a cada 5 segundos e as persiste em CSV; um motor de regras com lógica booleana avalia continuamente os dados e produz alertas classificados por nível de severidade; e um servidor Flask expõe um dashboard web que se atualiza automaticamente a cada 5 segundos, sem necessidade de recarregar a página.
+O **AgroSmart** simula uma rede de sensores distribuídos em talhões de uma propriedade rural. Na Fase 4, a solução evoluiu para um pipeline de streaming completo usando **Apache Kafka**: um produtor publica leituras de sensores continuamente; um consumidor as processa, persiste em CSV e avalia regras de alerta em tempo real; um servidor Flask expõe um dashboard web que se atualiza a cada 3 segundos.
+
+O sistema roda inteiramente em **Docker Compose** — sem instalação manual de dependências.
 
 ---
 
-## Funcionalidades
+## Arquitetura (Fase 4)
 
-- Geração automática de leituras simuladas de sensores a cada 5 segundos
-- Três regras de decisão com lógica booleana (AND / OR) aplicadas em tempo real
-- Dashboard web responsivo com atualização automática a cada 3 segundos
-- Botões de disparo manual de alertas para demonstração em sala ou apresentação
-- Persistência dos dados em CSV com histórico acumulado por execução
-- Modal de detalhes por alerta com recomendações de ação e download de relatório HTML
-- Interface totalmente self-contained: sem dependências de CDN ou frameworks de frontend
+```
+Sensores (gerador.py)
+    │ JSON a cada 5s
+    ▼
+producer.py  ──►  Apache Kafka (tópico: sensor_leituras)
+                        │
+                        ▼
+                  main.py (consumer)
+                  ├─ Persiste em CSV (thread-safe)
+                  ├─ Avalia regras (regras.py)
+                  └─ Atualiza alertas em memória
+                        │
+                        ▼
+                  Flask Dashboard (:5000)
+                  Kafka UI        (:8080)
+```
+
+**Containers:**
+
+| Container | Imagem | Função |
+|---|---|---|
+| `agro_zookeeper` | `cp-zookeeper:7.6` | Coordenação do cluster Kafka |
+| `agro_kafka` | `cp-kafka:7.6` | Broker de mensagens |
+| `agro_kafka_ui` | `provectuslabs/kafka-ui` | Interface visual do tópico (porta 8080) |
+| `agro_producer` | build local | Publica leituras no Kafka a cada 5s |
+| `agro_app` | build local | Dashboard Flask + consumidor Kafka (porta 5000) |
 
 ---
 
@@ -32,12 +53,71 @@ O sistema simula uma rede de sensores distribuídos em talhões de uma proprieda
 
 ```
 agro_monitor/
-├── main.py          — servidor Flask, thread de geração, dashboard HTML embutido e rotas API
-├── regras.py        — motor de regras: três verificações booleanas + método consolidador
-├── gerador.py       — geração de leituras normais e forçadas; persistência thread-safe em CSV
-└── dados/
-    └── leituras.csv — histórico de todas as leituras geradas (criado automaticamente)
+├── main.py              — Flask + consumidor Kafka + modo local (fallback)
+├── producer.py          — Produtor Kafka de leituras simuladas
+├── gerador.py           — Geração de leituras normais e forçadas
+├── regras.py            — Motor de regras: três verificações booleanas
+├── Dockerfile           — Imagem Python 3.11 slim
+├── docker-compose.yml   — Stack completa: Kafka + UI + producer + app
+├── requirements.txt     — flask, pandas, kafka-python
+├── dados/
+│   └── leituras.csv     — Histórico de leituras (criado automaticamente)
+└── docs/
+    ├── pipeline_streaming.html  — Diagrama do pipeline de dados
+    ├── canvas_negocios.html     — Business Model Canvas
+    └── fluxograma_decisao.html  — Fluxograma do motor de regras
 ```
+
+---
+
+## Execução com Docker (recomendado)
+
+```bash
+# Clonar / entrar na pasta
+cd agro_monitor
+
+# Subir toda a stack
+docker compose up --build
+
+# Acessar:
+# Dashboard:  http://localhost:5000
+# Kafka UI:   http://localhost:8080
+```
+
+Para parar:
+
+```bash
+docker compose down
+```
+
+---
+
+## Execução local (sem Docker)
+
+```bash
+pip install flask pandas kafka-python
+
+# Modo local (sem Kafka — igual à Fase 3)
+python main.py
+
+# Abrir: http://localhost:5000
+```
+
+O `main.py` detecta automaticamente se o Kafka está disponível. Se não estiver, usa a thread local de geração — sem nenhuma configuração extra.
+
+---
+
+## Pipeline de Dados com Streaming
+
+Diagrama completo: [`docs/pipeline_streaming.html`](docs/pipeline_streaming.html)
+
+**Fluxo:**
+
+1. `producer.py` gera leituras JSON a cada 5 segundos e publica no tópico `sensor_leituras`
+2. O Kafka armazena e distribui as mensagens (chave = `talhao_id`)
+3. `main.py` em modo `consumer` consome o tópico, persiste cada leitura no CSV e avalia as regras
+4. As regras booleanas detectam anomalias e atualizam a lista de alertas em memória
+5. O frontend faz polling `/api/dados` a cada 3s e renderiza alertas e leituras
 
 ---
 
@@ -46,116 +126,50 @@ agro_monitor/
 | Regra | Condição Lógica | Nível | Ação |
 |---|---|---|---|
 | INFESTAÇÃO | `perc_folhas_doentes > 30` **AND** `praga_detectada != "nenhuma"` | CRÍTICO | Alerta imediato; talhão marcado para monitoramento intensivo |
-| IRRIGAÇÃO  | `umidade_solo_pct < 30` **AND** `nivel_irrigacao == "baixo"` | ATENÇÃO | Solicitação de irrigação emergencial; notificação à equipe de manutenção |
-| TEMPERATURA | `temperatura_c > 35` **OR** `temperatura_c < 12` | AVISO | Registro de anomalia climática; aumento da frequência de monitoramento |
-
-As condições são avaliadas sobre as últimas 50 linhas do CSV a cada ciclo de 5 segundos.
+| IRRIGAÇÃO  | `umidade_solo_pct < 30` **AND** `nivel_irrigacao == "baixo"` | ATENÇÃO | Solicitação de irrigação emergencial |
+| TEMPERATURA | `temperatura_c > 35` **OR** `temperatura_c < 12` | AVISO | Registro de anomalia climática |
 
 ---
 
-## Instalação e Execução
+## Modelo de Negócio
 
-```bash
-# entrar na pasta do projeto
-cd agro_monitor
+Canvas completo: [`docs/canvas_negocios.html`](docs/canvas_negocios.html)
 
-# instalar dependências
-pip install flask pandas
+**Resumo da Proposta de Valor:**
 
-# executar
-python main.py
+- Alertas em tempo real de infestação, irrigação e temperatura
+- Redução estimada de 15–30% nas perdas de colheita
+- SaaS: Starter R$ 299/mês · Pro R$ 799/mês · Enterprise sob consulta
+- Segmentos: médios e grandes produtores, cooperativas, integradores
+
+---
+
+## Instalação e Dependências
+
 ```
-
-Abra `http://localhost:5000` no navegador.
-
----
-
-## Como Usar o Dashboard
-
-### Tabela de leituras em tempo real
-
-A coluna da direita exibe as 20 leituras mais recentes do CSV em ordem decrescente. Cada linha corresponde a uma leitura gerada automaticamente e contém: timestamp, talhão, percentual de folhas doentes, praga detectada (badge colorido), umidade do solo, temperatura e nível de irrigação.
-
-### Cards de alerta
-
-A coluna da esquerda lista os alertas ativos classificados por cor:
-
-| Cor | Nível | Significado |
-|---|---|---|
-| Vermelho | CRÍTICO | Infestação confirmada — ação imediata necessária |
-| Amarelo  | ATENÇÃO | Solo seco com irrigação insuficiente |
-| Azul     | AVISO   | Temperatura fora da faixa segura |
-
-Clique em **Ver Detalhes** em qualquer card para abrir o modal com recomendações de ação, ações automáticas realizadas pelo sistema e opção de download do relatório em HTML.
-
-### Botões de disparo manual
-
-O painel superior contém três botões que geram uma leitura com valores garantidamente fora dos limites, forçando o disparo da regra correspondente. Útil para demonstrações sem precisar aguardar que os valores aleatórios normais ultrapassem os limiares.
-
----
-
-## Detalhes Técnicos
-
-**Linguagem:** Python 3.10+
-
-**Bibliotecas:**
-
-| Biblioteca | Uso |
-|---|---|
-| `flask` | Servidor web, roteamento e serialização JSON das APIs |
-| `pandas` | Leitura e filtragem do CSV, avaliação das máscaras booleanas |
-| `threading` | Thread daemon de geração de dados e Lock de acesso ao CSV |
-| `csv` / `os` | Criação do arquivo CSV e append thread-safe de novas linhas |
-
-**Thread daemon + Flask:**
-
-Ao iniciar, `main.py` cria uma `threading.Thread(target=loop_geracao, daemon=True)` e a inicia antes de chamar `app.run()`. Por ser daemon, a thread é encerrada automaticamente quando o processo principal (Flask) termina. As duas executam no mesmo processo Python e compartilham as variáveis globais `alertas_recentes` e `csv_lock`.
-
-**threading.Lock:**
-
-O `csv_lock` é criado em `main.py` e injetado em `gerador.py` via `set_lock()`. Ele garante exclusão mútua no acesso ao arquivo CSV: a thread de geração faz append enquanto as rotas Flask leem o arquivo para montar a resposta da API — sem o lock, leituras parciais ou corrupção de dados seriam possíveis sob carga concorrente.
+flask>=3.0.0
+pandas>=2.0.0
+kafka-python>=2.0.2
+```
 
 ---
 
 ## Contexto Acadêmico
 
-Projeto entregue como atividade de automação agrícola, atendendo aos três requisitos da proposta:
+Projeto entregue como atividade da **Fase 4** de automação agrícola — FIAP · Turma 4ESOA.
 
-1. **Lógica de Decisão** — `regras.py` implementa três regras com operadores booleanos AND e OR aplicados sobre DataFrame pandas
-2. **Automação** — `main.py` dispara ações (alertas, registros, notificações simuladas) de forma autônoma a cada ciclo da thread, sem intervenção humana
-3. **Integração com Dados** — `gerador.py` produz os dados de entrada e os persiste em `dados/leituras.csv`; o motor de regras os lê e avalia a cada iteração
+### Requisitos atendidos
+
+1. **Pipeline de Dados com Streaming** — Apache Kafka com producer/consumer, `docker-compose.yml`, diagrama em `docs/pipeline_streaming.html`
+2. **Containerização** — `Dockerfile` + `docker-compose.yml` com 5 serviços
+3. **Modelo de Negócio com Canvas** — `docs/canvas_negocios.html`
 
 ### Time
 
-<table>
-  <tr>
-    <th>Nome</th>
-    <th>RM</th>
-    <th>Turma</th>
-  </tr>
-  <tr>
-    <td>Gabriel Genaro Dalaqua</td>
-    <td>551986</td>
-    <td>4ESOA</td>
-  </tr>
-  <tr>
-    <td>Alairton Rocha Scabelli </td>
-    <td>551454</td>
-    <td>4ESOA</td>
-  </tr>
-  <tr>
-    <td>Carolina Nascimento Amorim</td>
-    <td>97930</td>
-    <td>4ESOA</td>
-  </tr>
-  <tr>
-    <td>Eduardo Marins</td>
-    <td>551892</td>
-    <td>4ESOA</td>
-  </tr>
-  <tr>
-    <td>Sarah Ribeiro da Silva</td>
-    <td>97747</td>
-    <td>4ESOA</td>
-  </tr>
-</table>
+| Nome | RM | Turma |
+|---|---|---|
+| Gabriel Genaro Dalaqua | 551986 | 4ESOA |
+| Alairton Rocha Scabelli | 551454 | 4ESOA |
+| Carolina Nascimento Amorim | 97930 | 4ESOA |
+| Eduardo Marins | 551892 | 4ESOA |
+| Sarah Ribeiro da Silva | 97747 | 4ESOA |

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroSmart — Pipeline de Streaming de Dados</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0f1a0f;
+    color: #e8f5e9;
+    min-height: 100vh;
+    padding: 2rem 1.5rem;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a4d1a, #0f2e0f);
+    border: 1px solid #2d6a2d;
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 800; color: #a7f3d0; }
+  header p  { font-size: .88rem; opacity: .75; margin-top: .2rem; }
+  .tag { background: rgba(74,222,128,.15); border: 1px solid #4ade80; border-radius: 6px; padding: .3rem .9rem; font-size: .8rem; font-weight: 700; color: #4ade80; }
+
+  /* ── Pipeline horizontal ── */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+  }
+
+  .etapa {
+    flex: 1;
+    min-width: 160px;
+    background: #1a2e1a;
+    border: 1px solid #2d4d2d;
+    border-radius: 10px;
+    padding: 1.2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    position: relative;
+  }
+
+  .etapa + .etapa {
+    margin-left: 2rem;
+  }
+
+  /* seta entre etapas */
+  .etapa + .etapa::before {
+    content: "→";
+    position: absolute;
+    left: -1.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.4rem;
+    color: #4ade80;
+    font-weight: 700;
+  }
+
+  .etapa-num {
+    font-size: .68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #4ade80;
+    opacity: .7;
+  }
+
+  .etapa-icon { font-size: 2rem; }
+
+  .etapa-titulo {
+    font-size: .9rem;
+    font-weight: 800;
+    color: #a7f3d0;
+    line-height: 1.3;
+  }
+
+  .etapa-tech {
+    font-size: .72rem;
+    font-weight: 700;
+    color: #4ade80;
+    background: rgba(74,222,128,.1);
+    border: 1px solid rgba(74,222,128,.25);
+    border-radius: 4px;
+    padding: .15rem .5rem;
+    display: inline-block;
+    width: fit-content;
+  }
+
+  .etapa ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    margin-top: .2rem;
+  }
+  .etapa li {
+    font-size: .78rem;
+    color: #a8c5a8;
+    padding: .25rem .5rem;
+    background: rgba(255,255,255,.04);
+    border-radius: 4px;
+    border-left: 2px solid #2d6a2d;
+    line-height: 1.4;
+  }
+
+  /* cores por etapa */
+  .etapa-sensor  { border-color: #7c3aed; }
+  .etapa-sensor  .etapa-titulo { color: #c4b5fd; }
+  .etapa-sensor  .etapa-num   { color: #c4b5fd; }
+  .etapa-sensor  .etapa-tech  { border-color: #7c3aed; color: #c4b5fd; background: rgba(124,58,237,.1); }
+  .etapa-sensor  li           { border-color: #7c3aed; }
+
+  .etapa-kafka   { border-color: #ea580c; }
+  .etapa-kafka   .etapa-titulo { color: #fdba74; }
+  .etapa-kafka   .etapa-num   { color: #fdba74; }
+  .etapa-kafka   .etapa-tech  { border-color: #ea580c; color: #fdba74; background: rgba(234,88,12,.1); }
+  .etapa-kafka   li           { border-color: #ea580c; }
+
+  .etapa-consumer { border-color: #0284c7; }
+  .etapa-consumer .etapa-titulo { color: #7dd3fc; }
+  .etapa-consumer .etapa-num   { color: #7dd3fc; }
+  .etapa-consumer .etapa-tech  { border-color: #0284c7; color: #7dd3fc; background: rgba(2,132,199,.1); }
+  .etapa-consumer li           { border-color: #0284c7; }
+
+  .etapa-regras  { border-color: #dc2626; }
+  .etapa-regras  .etapa-titulo { color: #fca5a5; }
+  .etapa-regras  .etapa-num   { color: #fca5a5; }
+  .etapa-regras  .etapa-tech  { border-color: #dc2626; color: #fca5a5; background: rgba(220,38,38,.1); }
+  .etapa-regras  li           { border-color: #dc2626; }
+
+  .etapa-dash    { border-color: #16a34a; }
+  .etapa-dash    .etapa-titulo { color: #86efac; }
+  .etapa-dash    .etapa-num   { color: #86efac; }
+  .etapa-dash    .etapa-tech  { border-color: #16a34a; color: #86efac; background: rgba(22,163,74,.1); }
+  .etapa-dash    li           { border-color: #16a34a; }
+
+  /* ── Legenda de tópico ── */
+  .topico-box {
+    margin-top: 1.5rem;
+    background: #1a2e1a;
+    border: 1px solid #2d4d2d;
+    border-radius: 10px;
+    padding: 1.1rem 1.4rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .topico-box h3 {
+    font-size: .8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #fdba74;
+    margin-bottom: .5rem;
+  }
+
+  .topico-schema {
+    font-family: 'Courier New', monospace;
+    font-size: .78rem;
+    background: #0f1a0f;
+    border: 1px solid #2d4d2d;
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    color: #a7f3d0;
+    white-space: pre;
+    flex: 1;
+    min-width: 280px;
+  }
+
+  .topico-desc {
+    flex: 1;
+    min-width: 220px;
+  }
+  .topico-desc ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+  }
+  .topico-desc li {
+    font-size: .8rem;
+    color: #a8c5a8;
+    padding: .3rem .6rem;
+    background: rgba(255,255,255,.04);
+    border-radius: 4px;
+    border-left: 2px solid #fdba74;
+  }
+  .topico-desc li strong { color: #fdba74; display: block; font-size: .73rem; }
+
+  /* ── Arquitetura containers ── */
+  .containers {
+    margin-top: 1.5rem;
+    background: #1a2e1a;
+    border: 1px solid #2d4d2d;
+    border-radius: 10px;
+    padding: 1.1rem 1.4rem;
+  }
+  .containers h3 {
+    font-size: .8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #7dd3fc;
+    margin-bottom: .9rem;
+  }
+  .containers-grid {
+    display: flex;
+    gap: .75rem;
+    flex-wrap: wrap;
+  }
+  .container-card {
+    background: #0f1a0f;
+    border: 1px solid;
+    border-radius: 8px;
+    padding: .75rem 1rem;
+    flex: 1;
+    min-width: 170px;
+  }
+  .container-card .c-nome {
+    font-size: .8rem;
+    font-weight: 800;
+    margin-bottom: .3rem;
+  }
+  .container-card .c-imagem {
+    font-size: .7rem;
+    font-family: monospace;
+    opacity: .7;
+    margin-bottom: .4rem;
+  }
+  .container-card .c-desc {
+    font-size: .76rem;
+    color: #a8c5a8;
+    line-height: 1.4;
+  }
+  .c-zk    { border-color: #7c3aed; }  .c-zk    .c-nome { color: #c4b5fd; }
+  .c-kafka { border-color: #ea580c; }  .c-kafka .c-nome { color: #fdba74; }
+  .c-ui    { border-color: #0284c7; }  .c-ui    .c-nome { color: #7dd3fc; }
+  .c-prod  { border-color: #d97706; }  .c-prod  .c-nome { color: #fcd34d; }
+  .c-app   { border-color: #16a34a; }  .c-app   .c-nome { color: #86efac; }
+
+  footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: .75rem;
+    color: #4d6b4d;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⚡ AgroSmart — Pipeline de Streaming de Dados</h1>
+    <p>Fluxo de dados em tempo real: sensores → Apache Kafka → processamento → dashboard</p>
+  </div>
+  <span class="tag">APACHE KAFKA · DOCKER COMPOSE</span>
+</header>
+
+<!-- ── Pipeline principal ── -->
+<div class="pipeline">
+
+  <div class="etapa etapa-sensor">
+    <span class="etapa-num">Etapa 1</span>
+    <span class="etapa-icon">🌾</span>
+    <span class="etapa-titulo">Sensores de Campo</span>
+    <span class="etapa-tech">gerador.py</span>
+    <ul>
+      <li>Talhões 1–8 simulados</li>
+      <li>Temperatura, umidade, praga</li>
+      <li>15% de leituras anômalas</li>
+      <li>Intervalo: 5 segundos</li>
+    </ul>
+  </div>
+
+  <div class="etapa etapa-kafka">
+    <span class="etapa-num">Etapa 2</span>
+    <span class="etapa-icon">📨</span>
+    <span class="etapa-titulo">Kafka Producer</span>
+    <span class="etapa-tech">producer.py</span>
+    <ul>
+      <li>Publica JSON no tópico</li>
+      <li>Chave: talhao_id</li>
+      <li>Retry automático</li>
+      <li>Broker: kafka:29092</li>
+    </ul>
+  </div>
+
+  <div class="etapa etapa-kafka">
+    <span class="etapa-num">Etapa 3</span>
+    <span class="etapa-icon">🗃️</span>
+    <span class="etapa-titulo">Apache Kafka</span>
+    <span class="etapa-tech">confluentinc/cp-kafka:7.6</span>
+    <ul>
+      <li>Tópico: sensor_leituras</li>
+      <li>Partições por talhão</li>
+      <li>Retenção: offset mais recente</li>
+      <li>Porta externa: 9092</li>
+    </ul>
+  </div>
+
+  <div class="etapa etapa-consumer">
+    <span class="etapa-num">Etapa 4</span>
+    <span class="etapa-icon">📥</span>
+    <span class="etapa-titulo">Kafka Consumer</span>
+    <span class="etapa-tech">main.py (MODO=consumer)</span>
+    <ul>
+      <li>Consome tópico em loop</li>
+      <li>Persiste em CSV thread-safe</li>
+      <li>Group: agro-dashboard</li>
+      <li>Fallback → modo local</li>
+    </ul>
+  </div>
+
+  <div class="etapa etapa-regras">
+    <span class="etapa-num">Etapa 5</span>
+    <span class="etapa-icon">⚡</span>
+    <span class="etapa-titulo">Motor de Regras</span>
+    <span class="etapa-tech">regras.py</span>
+    <ul>
+      <li>Infestação: folhas>30% AND praga≠nenhuma</li>
+      <li>Irrigação: umid&lt;30% AND nível=baixo</li>
+      <li>Temperatura: &gt;35°C OR &lt;12°C</li>
+      <li>Avalia últimas 50 leituras</li>
+    </ul>
+  </div>
+
+  <div class="etapa etapa-dash">
+    <span class="etapa-num">Etapa 6</span>
+    <span class="etapa-icon">📊</span>
+    <span class="etapa-titulo">Dashboard Flask</span>
+    <span class="etapa-tech">Flask · GET /api/dados</span>
+    <ul>
+      <li>Alertas classificados por cor</li>
+      <li>Polling AJAX a cada 3s</li>
+      <li>Porta: 5000</li>
+      <li>Kafka UI: porta 8080</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ── Schema do tópico Kafka ── -->
+<div class="topico-box">
+  <div class="topico-desc" style="min-width:180px; max-width: 220px;">
+    <h3>📦 Tópico Kafka</h3>
+    <ul>
+      <li><strong>Nome</strong>sensor_leituras</li>
+      <li><strong>Chave da mensagem</strong>talhao_id (string)</li>
+      <li><strong>Serialização</strong>JSON UTF-8</li>
+      <li><strong>Produtor</strong>producer.py — 1 msg/5s</li>
+      <li><strong>Consumidor</strong>main.py — grupo agro-dashboard</li>
+      <li><strong>Retenção</strong>offset latest (streaming puro)</li>
+    </ul>
+  </div>
+  <div>
+    <h3>📋 Schema da Mensagem JSON</h3>
+    <div class="topico-schema">{
+  "timestamp":          "2026-06-23T14:30:05",
+  "talhao_id":          4,
+  "perc_folhas_doentes": 18.7,
+  "praga_detectada":    "nenhuma",
+  "umidade_solo_pct":   62.3,
+  "temperatura_c":      24.1,
+  "nivel_irrigacao":    "normal"
+}</div>
+  </div>
+</div>
+
+<!-- ── Containers ── -->
+<div class="containers">
+  <h3>🐳 Arquitetura de Containers (docker-compose.yml)</h3>
+  <div class="containers-grid">
+    <div class="container-card c-zk">
+      <div class="c-nome">agro_zookeeper</div>
+      <div class="c-imagem">cp-zookeeper:7.6.0</div>
+      <div class="c-desc">Coordenação de cluster Kafka. Porta interna 2181.</div>
+    </div>
+    <div class="container-card c-kafka">
+      <div class="c-nome">agro_kafka</div>
+      <div class="c-imagem">cp-kafka:7.6.0</div>
+      <div class="c-desc">Broker principal. Portas 29092 (interno) e 9092 (host).</div>
+    </div>
+    <div class="container-card c-ui">
+      <div class="c-nome">agro_kafka_ui</div>
+      <div class="c-imagem">provectuslabs/kafka-ui</div>
+      <div class="c-desc">Interface visual do tópico. Acessível em localhost:8080.</div>
+    </div>
+    <div class="container-card c-prod">
+      <div class="c-nome">agro_producer</div>
+      <div class="c-imagem">build: . (python:3.11-slim)</div>
+      <div class="c-desc">producer.py — publica leituras no Kafka a cada 5s.</div>
+    </div>
+    <div class="container-card c-app">
+      <div class="c-nome">agro_app</div>
+      <div class="c-imagem">build: . (python:3.11-slim)</div>
+      <div class="c-desc">main.py (MODO=consumer) — dashboard Flask em localhost:5000.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  AgroSmart · FIAP · Fase 4 · 2026 — Pipeline: Sensores → Kafka → Consumer → Regras → Dashboard
+</footer>
+
+</body>
+</html>

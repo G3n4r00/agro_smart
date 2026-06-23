@@ -1,15 +1,21 @@
 """
-main.py — Ponto de entrada do sistema de monitoramento agrícola.
+main.py — Ponto de entrada do AgroSmart.
 
-Inicia uma thread de geração contínua de dados e expõe um servidor Flask
-com dashboard HTML embutido e API JSON para consulta em tempo real.
+Modos de operação (variável de ambiente MODO):
+  consumer  — consome mensagens do Kafka, persiste em CSV e avalia regras
+  local     — thread local de geração sem Kafka (fallback / desenvolvimento)
 
-Uso:
-    pip install flask pandas
+Uso sem Docker:
+    pip install -r requirements.txt
     python main.py
-    → http://localhost:5000
+
+Uso com Docker:
+    docker compose up --build
+    → Dashboard:  http://localhost:5000
+    → Kafka UI:   http://localhost:8080
 """
 
+import json
 import os
 import threading
 import time
@@ -22,7 +28,7 @@ from gerador import (
     gerar_leitura_forcada,
     gerar_leitura_normal,
     salvar_no_csv,
-    set_lock
+    set_lock,
 )
 from regras import MotorDeRegras
 
@@ -30,17 +36,19 @@ from regras import MotorDeRegras
 # Configuração global
 # ---------------------------------------------------------------------------
 
-CSV_PATH = "dados/leituras.csv"
+CSV_PATH   = "dados/leituras.csv"
+KAFKA_BOOT = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "sensor_leituras")
+MODO       = os.getenv("MODO", "local")          # "consumer" | "local"
+
 os.makedirs("dados", exist_ok=True)
 
-# Lock único compartilhado entre Flask e a thread de geração
 csv_lock = threading.Lock()
-set_lock(csv_lock)  # injeta o lock no módulo gerador
+set_lock(csv_lock)
 
-app = Flask(__name__)
+app   = Flask(__name__)
 motor = MotorDeRegras()
 
-# Lista em memória com os alertas avaliados mais recentemente (máx 50)
 alertas_recentes: list[dict] = []
 
 # ---------------------------------------------------------------------------
@@ -52,7 +60,7 @@ HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monitoramento Agrícola</title>
+<title>AgroSmart — Monitoramento Agrícola</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -65,13 +73,14 @@ HTML = """<!DOCTYPE html>
 
   /* ── Cabeçalho ── */
   header {
-    background: #2d6a2d;
+    background: linear-gradient(135deg, #2d6a2d 0%, #1a4d1a 100%);
     color: #fff;
     padding: 1rem 1.5rem;
     display: flex;
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
   }
   header h1 { font-size: 1.3rem; flex: 1; }
   .badge-ativo {
@@ -82,6 +91,20 @@ HTML = """<!DOCTYPE html>
     font-size: .8rem;
     font-weight: 700;
     letter-spacing: .03em;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: .7; }
+  }
+  .badge-kafka {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    color: #fff;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 600;
   }
   #total-leituras { font-size: .85rem; opacity: .9; }
   #indicador {
@@ -141,6 +164,20 @@ HTML = """<!DOCTYPE html>
   .contador.critico { border-color: #ef4444; color: #991b1b; }
   .contador.atencao { border-color: #f59e0b; color: #92400e; }
   .contador.aviso   { border-color: #3b82f6; color: #1e40af; }
+
+  /* ── Fonte do dado ── */
+  .fonte-dado {
+    background: #fff;
+    border-bottom: 1px solid #e8f5e9;
+    padding: .45rem 1.5rem;
+    font-size: .78rem;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .fonte-dado .dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; display: inline-block; animation: pulse 1.5s infinite; }
+  .fonte-dado .dot.kafka { background: #7c3aed; }
 
   /* ── Layout de duas colunas ── */
   .grid {
@@ -423,7 +460,6 @@ HTML = """<!DOCTYPE html>
   }
   .btn-fechar-modal:hover { background: #e2e8e2; }
 
-  /* ── Separador de seções do modal ── */
   .modal-divisor {
     border: none;
     border-top: 1px solid #eee;
@@ -435,11 +471,18 @@ HTML = """<!DOCTYPE html>
 
 <!-- ── Cabeçalho ─────────────────────────────────────────────────────────── -->
 <header>
-  <h1>🌱 Monitoramento Agrícola em Tempo Real</h1>
+  <h1>🌱 AgroSmart — Monitoramento Agrícola em Tempo Real</h1>
   <span class="badge-ativo">● SISTEMA ATIVO</span>
-  <span id="total-leituras">— leituras no CSV</span>
+  <span class="badge-kafka" id="badge-fonte">⚡ LOCAL</span>
+  <span id="total-leituras">— leituras</span>
   <span id="indicador">● atualizado —</span>
 </header>
+
+<!-- ── Fonte do dado ─────────────────────────────────────────────────────── -->
+<div class="fonte-dado">
+  <span class="dot" id="dot-fonte"></span>
+  <span id="texto-fonte">Fonte de dados: carregando…</span>
+</div>
 
 <!-- ── Botões de disparo manual ──────────────────────────────────────────── -->
 <div class="painel-botoes">
@@ -535,10 +578,8 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <script>
-  let alertaAtual  = null;   // alerta aberto no modal no momento
-  let alertasCache = [];    // cópia da última lista recebida de /api/dados
-
-  // ── Utilitários ─────────────────────────────────────────────────────────
+  let alertaAtual  = null;
+  let alertasCache = [];
 
   function nivelClass(nivel) {
     const map = { 'CRÍTICO': 'critico', 'ATENÇÃO': 'atencao', 'AVISO': 'aviso' };
@@ -554,6 +595,23 @@ HTML = """<!DOCTYPE html>
     return new Date().toLocaleTimeString('pt-BR');
   }
 
+  function atualizarFonteBadge(fonte) {
+    const badge = document.getElementById('badge-fonte');
+    const dot   = document.getElementById('dot-fonte');
+    const texto = document.getElementById('texto-fonte');
+    if (fonte === 'kafka') {
+      badge.textContent = '⚡ KAFKA STREAMING';
+      badge.style.background = 'rgba(124,58,237,.2)';
+      dot.classList.add('kafka');
+      texto.textContent = 'Fonte de dados: Apache Kafka — streaming de mensagens em tempo real';
+    } else {
+      badge.textContent = '⚡ LOCAL';
+      badge.style.background = 'rgba(255,255,255,.15)';
+      dot.classList.remove('kafka');
+      texto.textContent = 'Fonte de dados: thread local — geração direta de leituras simuladas';
+    }
+  }
+
   // ── Modal ────────────────────────────────────────────────────────────────
 
   function abrirModal(indice) {
@@ -562,7 +620,6 @@ HTML = """<!DOCTYPE html>
     alertaAtual = alerta;
     const cls = nivelClass(alerta.nivel);
 
-    // Cabeçalho
     document.getElementById('modal-icone').textContent  = alerta.icone;
     document.getElementById('modal-regra').textContent  = alerta.regra;
     document.getElementById('modal-talhao').textContent = alerta.talhao_id;
@@ -571,7 +628,6 @@ HTML = """<!DOCTYPE html>
 
     const tagNivel = document.getElementById('modal-tag-nivel');
     tagNivel.textContent = alerta.nivel;
-    tagNivel.style.cssText = '';   // reset
     const tagColors = {
       critico: 'background:#ef4444;color:#fff',
       atencao: 'background:#f59e0b;color:#fff',
@@ -580,12 +636,10 @@ HTML = """<!DOCTYPE html>
     tagNivel.style.cssText = (tagColors[cls] || '') +
       ';font-size:.72rem;font-weight:800;letter-spacing:.04em;padding:.15rem .55rem;border-radius:4px;';
 
-    // Recomendações
     const olRec = document.getElementById('modal-recomendacoes');
     olRec.innerHTML = (alerta.recomendacoes || [])
       .map(r => '<li>' + r + '</li>').join('');
 
-    // Ações automáticas
     const ulAcoes = document.getElementById('modal-acoes');
     ulAcoes.innerHTML = (alerta.acoes_automaticas || [])
       .map(a => '<li>' + a + '</li>').join('');
@@ -598,12 +652,10 @@ HTML = """<!DOCTYPE html>
     alertaAtual = null;
   }
 
-  // Fecha apenas se o clique foi diretamente no overlay (não no modal-box)
   function fecharPorOverlay(event) {
     if (event.target === document.getElementById('modal-overlay')) fecharModal();
   }
 
-  // Fecha modal com tecla Escape
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') fecharModal();
   });
@@ -623,79 +675,32 @@ HTML = """<!DOCTYPE html>
     };
     const c = cores[cls] || cores.aviso;
 
-    const liRec = (a.recomendacoes || [])
-      .map(r => '<li>' + r + '</li>').join('');
-    const liAcoes = (a.acoes_automaticas || [])
-      .map(ac => '<li>&#10003; ' + ac + '</li>').join('');
+    const liRec   = (a.recomendacoes || []).map(r => '<li>' + r + '</li>').join('');
+    const liAcoes = (a.acoes_automaticas || []).map(ac => '<li>&#10003; ' + ac + '</li>').join('');
 
-    const html = '<!DOCTYPE html>\\n' +
-'<html lang="pt-BR">\\n' +
-'<head>\\n' +
-'<meta charset="UTF-8">\\n' +
-'<meta name="viewport" content="width=device-width, initial-scale=1.0">\\n' +
-'<title>Relatório de Alerta — Talhão ' + a.talhao_id + '</title>\\n' +
-'<style>\\n' +
-'  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\\n' +
-'  body { font-family: system-ui, -apple-system, sans-serif; background: #f0f4f0; color: #1a2e1a; padding: 2rem 1rem; }\\n' +
-'  .page { max-width: 720px; margin: 0 auto; box-shadow: 0 4px 24px rgba(0,0,0,.12); border-radius: 12px; overflow: hidden; }\\n' +
-'  .rel-header { background: #2d6a2d; color: #fff; padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }\\n' +
-'  .rel-header h1 { font-size: 1.15rem; font-weight: 800; margin-bottom: .2rem; }\\n' +
-'  .rel-header p  { font-size: .82rem; opacity: .8; }\\n' +
-'  .rel-header-right { text-align: right; font-size: .8rem; opacity: .8; }\\n' +
-'  .rel-header-right strong { display: block; font-size: .95rem; color: #fff; }\\n' +
-'  .card-principal { background: ' + c.fundo + '; border-left: 6px solid ' + c.borda + '; padding: 1.25rem 2rem; border-bottom: 1px solid #e0e0e0; }\\n' +
-'  .card-titulo { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; margin-bottom: .5rem; }\\n' +
-'  .tag-nivel { background: ' + c.nivel + '; color: #fff; font-size: .72rem; font-weight: 800; letter-spacing: .06em; padding: .2rem .65rem; border-radius: 4px; }\\n' +
-'  .card-titulo h2 { font-size: 1.05rem; color: ' + c.texto + '; font-weight: 800; }\\n' +
-'  .card-detalhe { font-size: .92rem; color: #444; margin-bottom: .3rem; }\\n' +
-'  .card-ts { font-size: .78rem; color: #888; }\\n' +
-'  .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .5rem; padding: 1.1rem 2rem; background: #fff; border-bottom: 1px solid #e8e8e8; }\\n' +
-'  .meta-item .label { color: #888; font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }\\n' +
-'  .meta-item .valor { color: #1a2e1a; font-weight: 700; margin-top: .1rem; font-size: .88rem; }\\n' +
-'  .secao { background: #fff; padding: 1.25rem 2rem; border-bottom: 1px solid #eee; }\\n' +
-'  .secao:last-of-type { border-bottom: none; }\\n' +
-'  .secao h3 { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #555; margin-bottom: .85rem; padding-bottom: .45rem; border-bottom: 2px solid #e8e8e8; }\\n' +
-'  .secao ol, .secao ul { padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: .5rem; }\\n' +
-'  .secao li { font-size: .9rem; line-height: 1.55; color: #333; padding: .55rem .8rem; background: #f8f8f8; border-radius: 6px; border-left: 3px solid #ddd; }\\n' +
-'  .secao-rec li   { border-color: ' + c.borda + '; }\\n' +
-'  .secao-acoes li { border-color: #16a34a; background: #f0fdf4; color: #14532d; font-weight: 500; }\\n' +
-'  .rodape { background: #fff; padding: .9rem 2rem; text-align: center; font-size: .75rem; color: #999; border-top: 1px solid #eee; }\\n' +
-'  @media print { body { background: #fff; padding: 0; } .page { box-shadow: none; border-radius: 0; } }\\n' +
-'</style>\\n' +
-'</head>\\n' +
-'<body>\\n' +
-'<div class="page">\\n' +
-'  <div class="rel-header">\\n' +
-'    <div><h1>&#127807; Relatório de Alerta Agrícola</h1><p>Sistema de Monitoramento Agrícola — gerado automaticamente</p></div>\\n' +
-'    <div class="rel-header-right">Gerado em<strong>' + agora + '</strong></div>\\n' +
-'  </div>\\n' +
-'  <div class="card-principal">\\n' +
-'    <div class="card-titulo">\\n' +
-'      <span style="font-size:1.4rem">' + a.icone + '</span>\\n' +
-'      <span class="tag-nivel">' + a.nivel + '</span>\\n' +
-'      <h2>' + a.regra + ' — Talhão ' + a.talhao_id + '</h2>\\n' +
-'    </div>\\n' +
-'    <div class="card-detalhe">' + a.detalhe + '</div>\\n' +
-'    <div class="card-ts">Leitura registrada em: ' + a.timestamp + '</div>\\n' +
-'  </div>\\n' +
-'  <div class="meta-grid">\\n' +
-'    <div class="meta-item"><div class="label">Regra disparada</div><div class="valor">' + a.regra + '</div></div>\\n' +
-'    <div class="meta-item"><div class="label">Nível</div><div class="valor" style="color:' + c.nivel + '">' + a.nivel + '</div></div>\\n' +
-'    <div class="meta-item"><div class="label">Talhão</div><div class="valor">' + a.talhao_id + '</div></div>\\n' +
-'    <div class="meta-item"><div class="label">Timestamp</div><div class="valor">' + a.timestamp + '</div></div>\\n' +
-'  </div>\\n' +
-'  <div class="secao secao-rec"><h3>&#128203; Recomendações de Ação</h3><ol>' + liRec + '</ol></div>\\n' +
-'  <div class="secao secao-acoes"><h3>&#9881;&#65039; Ações Automáticas Realizadas pelo Sistema</h3><ul>' + liAcoes + '</ul></div>\\n' +
-'</div>\\n' +
-'</body>\\n' +
-'</html>';
+    const html = '<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n<meta charset="UTF-8">\n' +
+'<title>Relatório — Talhão ' + a.talhao_id + '</title>\n' +
+'<style>body{font-family:system-ui;background:#f0f4f0;padding:2rem 1rem;color:#1a2e1a}' +
+'.page{max-width:720px;margin:0 auto;box-shadow:0 4px 24px rgba(0,0,0,.12);border-radius:12px;overflow:hidden}' +
+'.rel-header{background:#2d6a2d;color:#fff;padding:1.5rem 2rem}' +
+'.card-principal{background:' + c.fundo + ';border-left:6px solid ' + c.borda + ';padding:1.25rem 2rem}' +
+'.tag-nivel{background:' + c.nivel + ';color:#fff;font-size:.72rem;font-weight:800;padding:.2rem .65rem;border-radius:4px}' +
+'.secao{background:#fff;padding:1.25rem 2rem;border-bottom:1px solid #eee}' +
+'.secao h3{font-size:.78rem;font-weight:800;text-transform:uppercase;color:#555;margin-bottom:.85rem}' +
+'.secao li{font-size:.9rem;padding:.55rem .8rem;background:#f8f8f8;border-radius:6px;border-left:3px solid ' + c.borda + ';margin-bottom:.4rem;list-style:none}' +
+'</style></head><body>\n' +
+'<div class="page">' +
+'<div class="rel-header"><h1>🌱 Relatório de Alerta AgroSmart</h1><p>Gerado em ' + agora + '</p></div>' +
+'<div class="card-principal"><span class="tag-nivel">' + a.nivel + '</span> <strong>' + a.regra + ' — Talhão ' + a.talhao_id + '</strong><p>' + a.detalhe + '</p><small>' + a.timestamp + '</small></div>' +
+'<div class="secao"><h3>Recomendações</h3><ol>' + liRec + '</ol></div>' +
+'<div class="secao"><h3>Ações Automáticas</h3><ul>' + liAcoes + '</ul></div>' +
+'</div></body></html>';
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href     = url;
-    link.download = 'alerta_talhao' + a.talhao_id + '_' +
-                    a.timestamp.replace(/[:.T]/g, '-') + '.html';
+    link.download = 'alerta_talhao' + a.talhao_id + '_' + a.timestamp.replace(/[:.T]/g, '-') + '.html';
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -710,7 +715,7 @@ HTML = """<!DOCTYPE html>
   // ── Render alertas ───────────────────────────────────────────────────────
 
   function renderAlertas(alertas) {
-    alertasCache = alertas;   // salva para abrirModal(indice) usar
+    alertasCache = alertas;
     const lista = document.getElementById('lista-alertas');
     document.getElementById('num-alertas').textContent = alertas.length;
 
@@ -731,9 +736,7 @@ HTML = """<!DOCTYPE html>
                '<div class="detalhe">' + a.detalhe + '</div>' +
                '<div class="ts">' + a.timestamp + '</div>' +
                '<div class="card-footer">' +
-                 '<button class="btn-detalhes" onclick="abrirModal(' + i + ')">' +
-                   '🔍 Ver Detalhes' +
-                 '</button>' +
+                 '<button class="btn-detalhes" onclick="abrirModal(' + i + ')">🔍 Ver Detalhes</button>' +
                '</div>' +
              '</div>';
     }).join('');
@@ -769,9 +772,10 @@ HTML = """<!DOCTYPE html>
 
       renderAlertas(dados.alertas);
       renderLeituras(dados.leituras);
+      atualizarFonteBadge(dados.fonte || 'local');
 
       document.getElementById('total-leituras').textContent =
-        dados.totais.leituras_csv + ' leituras no CSV';
+        dados.totais.leituras_csv + ' leituras';
       document.getElementById('cnt-critico').textContent = dados.totais.critico;
       document.getElementById('cnt-atencao').textContent = dados.totais.atencao;
       document.getElementById('cnt-aviso').textContent   = dados.totais.aviso;
@@ -801,24 +805,17 @@ HTML = """<!DOCTYPE html>
     }
   }
 
-  // ── Loop de atualização automática ──────────────────────────────────────
-
   atualizarDashboard();
   setInterval(atualizarDashboard, 3000);
 </script>
 </body>
 </html>"""
 
-
 # ---------------------------------------------------------------------------
-# Thread de geração contínua
+# Thread de geração local (modo sem Kafka)
 # ---------------------------------------------------------------------------
 
-def loop_geracao() -> None:
-    """
-    Daemon thread: a cada 5 segundos gera uma leitura normal,
-    persiste no CSV e reavalia todas as regras sobre as últimas 50 linhas.
-    """
+def loop_geracao_local() -> None:
     while True:
         leitura = gerar_leitura_normal()
         salvar_no_csv(leitura, CSV_PATH)
@@ -827,9 +824,51 @@ def loop_geracao() -> None:
             df = pd.read_csv(CSV_PATH).tail(50)
 
         novos_alertas = motor.avaliar(df)
-        alertas_recentes[:] = novos_alertas[:50]  # atualiza in-place, máx 50
-
+        alertas_recentes[:] = novos_alertas[:50]
         time.sleep(5)
+
+
+# ---------------------------------------------------------------------------
+# Thread consumidora Kafka (modo container)
+# ---------------------------------------------------------------------------
+
+def loop_consumidor_kafka() -> None:
+    from kafka import KafkaConsumer
+    from kafka.errors import NoBrokersAvailable
+
+    consumer = None
+    for tentativa in range(1, 30):
+        try:
+            consumer = KafkaConsumer(
+                KAFKA_TOPIC,
+                bootstrap_servers=KAFKA_BOOT,
+                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+                auto_offset_reset="latest",
+                enable_auto_commit=True,
+                group_id="agro-dashboard",
+            )
+            print(f"[CONSUMER] Conectado ao Kafka em {KAFKA_BOOT}")
+            break
+        except NoBrokersAvailable:
+            print(f"[CONSUMER] Broker indisponível — tentativa {tentativa}/30. Aguardando 5s…")
+            time.sleep(5)
+
+    if consumer is None:
+        print("[CONSUMER] Kafka indisponível — fallback para modo local")
+        loop_geracao_local()
+        return
+
+    print(f"[CONSUMER] Escutando tópico '{KAFKA_TOPIC}'")
+    for msg in consumer:
+        leitura: dict = msg.value
+        leitura.pop("_forcada", None)
+        salvar_no_csv(leitura, CSV_PATH)
+
+        with csv_lock:
+            df = pd.read_csv(CSV_PATH).tail(50)
+
+        novos_alertas = motor.avaliar(df)
+        alertas_recentes[:] = novos_alertas[:50]
 
 
 # ---------------------------------------------------------------------------
@@ -838,18 +877,16 @@ def loop_geracao() -> None:
 
 @app.route("/")
 def index():
-    """Serve o dashboard HTML embutido."""
     return render_template_string(HTML)
 
 
 @app.route("/api/dados")
 def api_dados():
-    """Retorna as últimas 20 leituras do CSV e os alertas atuais em JSON."""
     try:
         with csv_lock:
             df = pd.read_csv(CSV_PATH)
         total_linhas = len(df)
-        ultimas = df.tail(20).iloc[::-1]  # mais recentes primeiro
+        ultimas = df.tail(20).iloc[::-1]
         leituras_json = ultimas.to_dict(orient="records")
     except FileNotFoundError:
         total_linhas = 0
@@ -866,17 +903,14 @@ def api_dados():
         leituras=leituras_json,
         alertas=alertas_recentes,
         totais=contagem,
+        fonte="kafka" if MODO == "consumer" else "local",
     )
 
 
 @app.route("/api/gerar", methods=["POST"])
 def api_gerar():
-    """
-    Gera uma leitura forçada para o tipo de alerta informado.
-    Body JSON: { "tipo": "infestacao" | "irrigacao" | "temperatura" }
-    """
     dados = request.get_json(force=True, silent=True) or {}
-    tipo = dados.get("tipo", "infestacao")
+    tipo  = dados.get("tipo", "infestacao")
 
     leitura = gerar_leitura_forcada(tipo)
     salvar_no_csv(leitura, CSV_PATH)
@@ -892,23 +926,27 @@ def api_gerar():
 
 @app.route("/api/limpar-alertas", methods=["POST"])
 def api_limpar_alertas():
-    """Remove todos os alertas da lista em memória sem apagar o CSV."""
     alertas_recentes.clear()
     return jsonify(ok=True)
+
 
 # ---------------------------------------------------------------------------
 # Ponto de entrada
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("🌱 Iniciando sistema de monitoramento agrícola...")
+    print("🌱 Iniciando AgroSmart — Monitoramento Agrícola")
+    print(f"⚙  Modo: {MODO.upper()}")
     print("📊 Dashboard disponível em: http://localhost:5000")
-    print("⏱  Gerando dados a cada 5 segundos automaticamente")
 
-    # Gera CSV inicial com 50 linhas
     gerar_csv_inicial(50, CSV_PATH)
 
-    t = threading.Thread(target=loop_geracao, daemon=True)
-    t.start()
+    if MODO == "consumer":
+        print(f"📡 Kafka broker: {KAFKA_BOOT}  |  Tópico: {KAFKA_TOPIC}")
+        t = threading.Thread(target=loop_consumidor_kafka, daemon=True)
+    else:
+        print("⏱  Gerando dados localmente a cada 5 segundos")
+        t = threading.Thread(target=loop_geracao_local, daemon=True)
 
-    app.run(debug=False, port=5000)
+    t.start()
+    app.run(debug=False, host="0.0.0.0", port=5000)

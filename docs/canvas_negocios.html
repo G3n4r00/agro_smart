@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroSmart — Business Model Canvas</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f0f4f0;
+    color: #1a2e1a;
+    padding: 1.5rem;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #2d6a2d, #1a4d1a);
+    color: #fff;
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  }
+  header h1 { font-size: 1.5rem; font-weight: 800; }
+  header p  { font-size: .9rem; opacity: .85; margin-top: .2rem; }
+  .tag-canvas {
+    background: rgba(255,255,255,.2);
+    border: 1px solid rgba(255,255,255,.4);
+    border-radius: 6px;
+    padding: .4rem 1rem;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+  }
+
+  /* ── Grade do Canvas ── */
+  .canvas-grid {
+    display: grid;
+    gap: .75rem;
+    /* Colunas: parcerias | atividades+recursos | proposta | relacionamento+canais | segmentos */
+    grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  /* Layout: linha 1 */
+  .cel-parcerias       { grid-column: 1; grid-row: 1 / 3; }
+  .cel-atividades      { grid-column: 2; grid-row: 1; }
+  .cel-proposta        { grid-column: 3; grid-row: 1 / 3; }
+  .cel-relacionamento  { grid-column: 4; grid-row: 1; }
+  .cel-segmentos       { grid-column: 5; grid-row: 1 / 3; }
+  /* linha 2 */
+  .cel-recursos        { grid-column: 2; grid-row: 2; }
+  .cel-canais          { grid-column: 4; grid-row: 2; }
+  /* linha 3 */
+  .cel-custos          { grid-column: 1 / 4; grid-row: 3; }
+  .cel-receitas        { grid-column: 4 / 6; grid-row: 3; }
+
+  @media (max-width: 900px) {
+    .canvas-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: none;
+    }
+    .cel-parcerias, .cel-atividades, .cel-proposta,
+    .cel-relacionamento, .cel-segmentos, .cel-recursos,
+    .cel-canais, .cel-custos, .cel-receitas {
+      grid-column: auto;
+      grid-row: auto;
+    }
+  }
+
+  /* ── Célula ── */
+  .cel {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  .cel-header {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .25rem;
+  }
+  .cel-icon  { font-size: 1.25rem; }
+  .cel-title {
+    font-size: .78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #2d6a2d;
+  }
+
+  .cel ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+  }
+  .cel li {
+    font-size: .82rem;
+    line-height: 1.5;
+    color: #333;
+    padding: .4rem .65rem;
+    border-radius: 6px;
+    background: #f5faf5;
+    border-left: 3px solid #c8e6c9;
+    position: relative;
+  }
+  .cel li strong {
+    color: #1a4d1a;
+    display: block;
+    font-size: .78rem;
+    margin-bottom: .1rem;
+  }
+
+  /* Cores por seção */
+  .cel-parcerias      .cel-title { color: #7c3aed; }
+  .cel-parcerias      li         { border-color: #ddd6fe; background: #f5f3ff; }
+  .cel-parcerias      .cel-icon  { }
+
+  .cel-atividades     .cel-title { color: #b45309; }
+  .cel-atividades     li         { border-color: #fde68a; background: #fffbeb; }
+
+  .cel-recursos       .cel-title { color: #0369a1; }
+  .cel-recursos       li         { border-color: #bae6fd; background: #f0f9ff; }
+
+  .cel-proposta       { background: #2d6a2d; }
+  .cel-proposta       .cel-title { color: #a7f3d0; }
+  .cel-proposta       li         { border-color: #4caf50; background: rgba(255,255,255,.1); color: #e8f5e9; }
+  .cel-proposta       li strong  { color: #a7f3d0; }
+  .cel-proposta       .cel-icon  { }
+
+  .cel-relacionamento .cel-title { color: #be123c; }
+  .cel-relacionamento li         { border-color: #fda4af; background: #fff1f2; }
+
+  .cel-canais         .cel-title { color: #0f766e; }
+  .cel-canais         li         { border-color: #99f6e4; background: #f0fdfa; }
+
+  .cel-segmentos      .cel-title { color: #1d4ed8; }
+  .cel-segmentos      li         { border-color: #93c5fd; background: #eff6ff; }
+
+  .cel-custos         { background: #fff7ed; }
+  .cel-custos         .cel-title { color: #c2410c; }
+  .cel-custos         li         { border-color: #fdba74; background: #fff; }
+
+  .cel-receitas       { background: #f0fdf4; }
+  .cel-receitas       .cel-title { color: #15803d; }
+  .cel-receitas       li         { border-color: #86efac; background: #fff; }
+
+  /* ── Rodapé ── */
+  footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: .78rem;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌱 AgroSmart — Business Model Canvas</h1>
+    <p>Modelo de Negócio — Fase 4 · FIAP · 4ESOA</p>
+  </div>
+  <span class="tag-canvas">BUSINESS MODEL CANVAS</span>
+</header>
+
+<div class="canvas-grid">
+
+  <!-- ── Parcerias-Chave ── -->
+  <div class="cel cel-parcerias">
+    <div class="cel-header">
+      <span class="cel-icon">🤝</span>
+      <span class="cel-title">Parcerias-Chave</span>
+    </div>
+    <ul>
+      <li><strong>Fabricantes de sensores IoT</strong>Fornecedores de hardware agrícola de campo (temperatura, umidade, câmeras)</li>
+      <li><strong>Cooperativas agrícolas</strong>Distribuição e credibilidade junto ao produtor rural</li>
+      <li><strong>Empresas de telecomunicações</strong>Infraestrutura de conectividade rural (4G/5G/LoRaWAN)</li>
+      <li><strong>Provedores de nuvem</strong>AWS / Azure para escalabilidade da plataforma</li>
+      <li><strong>Empresas de defensivos</strong>Integração de receituários agronômicos digitais</li>
+      <li><strong>EMBRAPA / Institutos de pesquisa</strong>Base científica para modelos de decisão</li>
+    </ul>
+  </div>
+
+  <!-- ── Atividades-Chave ── -->
+  <div class="cel cel-atividades">
+    <div class="cel-header">
+      <span class="cel-icon">⚙️</span>
+      <span class="cel-title">Atividades-Chave</span>
+    </div>
+    <ul>
+      <li><strong>Desenvolvimento de plataforma</strong>Engenharia de software, pipeline de dados em tempo real com Kafka</li>
+      <li><strong>Processamento de dados de sensores</strong>Ingestão, limpeza e análise de leituras de campo</li>
+      <li><strong>Manutenção de modelos de alertas</strong>Atualização dos limiares e regras de decisão</li>
+      <li><strong>Suporte técnico ao produtor</strong>Onboarding, treinamento e atendimento</li>
+      <li><strong>Integrações de parceiros</strong>APIs para ERP agrícola e sistemas de irrigação automatizada</li>
+    </ul>
+  </div>
+
+  <!-- ── Proposta de Valor (CENTRO) ── -->
+  <div class="cel cel-proposta">
+    <div class="cel-header">
+      <span class="cel-icon">💎</span>
+      <span class="cel-title">Proposta de Valor</span>
+    </div>
+    <ul>
+      <li><strong>Alertas em tempo real</strong>Detecção automática de infestações, falhas de irrigação e anomalias climáticas antes que causem perdas significativas</li>
+      <li><strong>Decisão orientada a dados</strong>Eliminação de inspeções manuais caras e pouco frequentes — o sistema monitora 24 h, 7 dias por semana</li>
+      <li><strong>Redução de perdas</strong>Estimativa de redução de 15–30% nas perdas de colheita com intervenção precoce</li>
+      <li><strong>Facilidade de uso</strong>Dashboard web intuitivo, sem necessidade de equipe especializada em TI</li>
+      <li><strong>Escalabilidade</strong>De um talhão a centenas de fazendas com a mesma plataforma</li>
+      <li><strong>Relatórios automáticos</strong>Documentação rastreável de ocorrências para compliance e seguro agrícola</li>
+    </ul>
+  </div>
+
+  <!-- ── Relacionamento com Clientes ── -->
+  <div class="cel cel-relacionamento">
+    <div class="cel-header">
+      <span class="cel-icon">💬</span>
+      <span class="cel-title">Relacionamento</span>
+    </div>
+    <ul>
+      <li><strong>Autoatendimento digital</strong>Dashboard + app mobile com suporte guiado</li>
+      <li><strong>Gerente de conta dedicado</strong>Para clientes Enterprise (>500 ha)</li>
+      <li><strong>Comunidade online</strong>Fórum de produtores, boas práticas, alertas regionais</li>
+      <li><strong>Suporte por WhatsApp</strong>Canal familiar ao produtor rural brasileiro</li>
+    </ul>
+  </div>
+
+  <!-- ── Segmentos de Clientes ── -->
+  <div class="cel cel-segmentos">
+    <div class="cel-header">
+      <span class="cel-icon">👥</span>
+      <span class="cel-title">Segmentos de Clientes</span>
+    </div>
+    <ul>
+      <li><strong>Médios produtores rurais</strong>Fazendas de 50–500 ha com culturas de grãos, horticultura e fruticultura</li>
+      <li><strong>Grandes produtores / Grupos agrícolas</strong>Operações com múltiplas fazendas que exigem consolidação de dados</li>
+      <li><strong>Cooperativas agrícolas</strong>Gestão coletiva de monitoramento para associados</li>
+      <li><strong>Integradores de agronegócio</strong>Empresas que prestam consultoria técnica a produtores</li>
+    </ul>
+  </div>
+
+  <!-- ── Recursos-Chave ── -->
+  <div class="cel cel-recursos">
+    <div class="cel-header">
+      <span class="cel-icon">🏗️</span>
+      <span class="cel-title">Recursos-Chave</span>
+    </div>
+    <ul>
+      <li><strong>Plataforma de dados (Kafka + Flask)</strong>Pipeline de streaming e API REST de tempo real</li>
+      <li><strong>Motor de regras agrícolas</strong>Lógica booleana configurável por cultura</li>
+      <li><strong>Equipe de engenharia</strong>Dev, data science e agrônomos consultores</li>
+      <li><strong>Base de dados históricos</strong>Leituras acumuladas para benchmarking e ML</li>
+    </ul>
+  </div>
+
+  <!-- ── Canais ── -->
+  <div class="cel cel-canais">
+    <div class="cel-header">
+      <span class="cel-icon">📡</span>
+      <span class="cel-title">Canais</span>
+    </div>
+    <ul>
+      <li><strong>Venda direta online</strong>Site + trial gratuito de 30 dias</li>
+      <li><strong>Parceria com cooperativas</strong>Oferta do serviço no bundle de associação</li>
+      <li><strong>Revendas de insumos agrícolas</strong>Cross-sell junto à venda de sementes/defensivos</li>
+      <li><strong>Feiras do agronegócio</strong>Agrishow, Show Rural Coopavel</li>
+    </ul>
+  </div>
+
+  <!-- ── Estrutura de Custos ── -->
+  <div class="cel cel-custos">
+    <div class="cel-header">
+      <span class="cel-icon">💸</span>
+      <span class="cel-title">Estrutura de Custos</span>
+    </div>
+    <ul style="flex-direction: row; flex-wrap: wrap; gap: .5rem;">
+      <li style="flex: 1; min-width: 160px;"><strong>Infraestrutura de nuvem</strong>Kafka gerenciado, armazenamento, CDN — ~35% dos custos operacionais</li>
+      <li style="flex: 1; min-width: 160px;"><strong>Equipe de P&D</strong>Desenvolvimento contínuo da plataforma — ~30%</li>
+      <li style="flex: 1; min-width: 160px;"><strong>Suporte e Customer Success</strong>Atendimento e onboarding — ~15%</li>
+      <li style="flex: 1; min-width: 160px;"><strong>Vendas e marketing</strong>Presença em feiras, marketing digital — ~12%</li>
+      <li style="flex: 1; min-width: 160px;"><strong>Parceiros e integrações</strong>Licenças de API, conectores — ~8%</li>
+    </ul>
+  </div>
+
+  <!-- ── Fontes de Receita ── -->
+  <div class="cel cel-receitas">
+    <div class="cel-header">
+      <span class="cel-icon">💰</span>
+      <span class="cel-title">Fontes de Receita</span>
+    </div>
+    <ul style="flex-direction: row; flex-wrap: wrap; gap: .5rem;">
+      <li style="flex: 1; min-width: 160px;"><strong>SaaS — Assinatura mensal</strong>Plano Starter (até 5 talhões): R$ 299/mês · Plano Pro (até 20): R$ 799/mês · Enterprise: sob consulta</li>
+      <li style="flex: 1; min-width: 160px;"><strong>Implantação e customização</strong>Fee único de setup para integração com sensores existentes — R$ 1.500–5.000</li>
+      <li style="flex: 1; min-width: 160px;"><strong>API para parceiros</strong>Licenciamento da API de alertas para ERPs e plataformas de seguro agrícola</li>
+    </ul>
+  </div>
+
+</div>
+
+<footer>
+  AgroSmart · FIAP · Fase 4 · 2026 — Gabriel Genaro · Alairton Scabelli · Carolina Amorim · Eduardo Marins · Sarah Ribeiro
+</footer>
+
+</body>
+</html>
