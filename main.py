@@ -842,7 +842,7 @@ def loop_consumidor_kafka() -> None:
                 KAFKA_TOPIC,
                 bootstrap_servers=KAFKA_BOOT,
                 value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-                auto_offset_reset="latest",
+                auto_offset_reset="earliest",
                 enable_auto_commit=True,
                 group_id="agro-dashboard",
             )
@@ -887,7 +887,7 @@ def api_dados():
         total_linhas = len(df)
         ultimas = df.tail(20).iloc[::-1]
         leituras_json = ultimas.to_dict(orient="records")
-    except FileNotFoundError:
+    except Exception:
         total_linhas = 0
         leituras_json = []
 
@@ -938,7 +938,8 @@ if __name__ == "__main__":
     print(f"⚙  Modo: {MODO.upper()}")
     print("📊 Dashboard disponível em: http://localhost:5000")
 
-    gerar_csv_inicial(50, CSV_PATH)
+    if MODO != "consumer":
+        gerar_csv_inicial(50, CSV_PATH)
 
     if MODO == "consumer":
         print(f"📡 Kafka broker: {KAFKA_BOOT}  |  Tópico: {KAFKA_TOPIC}")
