@@ -1,0 +1,126 @@
+<mxfile host="app.diagrams.net" version="21.7.5">
+  <diagram id="bmc-agrosmart" name="Business Model Canvas">
+    <mxGraphModel dx="1200" dy="780" grid="0" gridSize="10" guides="1" tooltips="1" connect="0" arrows="0" fold="0" page="1" pageScale="1" pageWidth="1200" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TÍTULO -->
+        <mxCell id="title" value="AgroSmart — Business Model Canvas"
+          style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=#2d6a2d;fontColor=#ffffff;strokeColor=none;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="10" width="1020" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- ── PARCERIAS-CHAVE ── -->
+        <mxCell id="p-h" value="Parcerias-Chave"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="50" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p-c" value="• Fabricantes de sensores IoT&#xa;&#xa;• Cooperativas agrícolas&#xa;&#xa;• Provedores de nuvem&#xa;  (AWS / Azure)&#xa;&#xa;• Telecos rurais&#xa;  (4G / LoRaWAN)&#xa;&#xa;• EMBRAPA e institutos&#xa;  de pesquisa&#xa;&#xa;• Empresas de defensivos&#xa;  agrícolas"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0f4f0;strokeColor=#c8e6c9;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="80" width="200" height="370" as="geometry" />
+        </mxCell>
+
+        <!-- ── ATIVIDADES-CHAVE ── -->
+        <mxCell id="a-h" value="Atividades-Chave"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="250" y="50" width="205" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="a-c" value="• Desenvolvimento da&#xa;  plataforma de streaming&#xa;&#xa;• Manutenção do motor&#xa;  de alertas agrícolas&#xa;&#xa;• Integrações com sensores&#xa;  e sistemas de campo&#xa;&#xa;• Suporte técnico&#xa;  e onboarding"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0f4f0;strokeColor=#c8e6c9;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="250" y="80" width="205" height="165" as="geometry" />
+        </mxCell>
+
+        <!-- ── RECURSOS-CHAVE ── -->
+        <mxCell id="r-h" value="Recursos-Chave"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="250" y="245" width="205" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r-c" value="• Plataforma Kafka + Flask&#xa;&#xa;• Motor de regras agrícolas&#xa;&#xa;• Equipe dev + agrônomos&#xa;&#xa;• Base histórica de leituras&#xa;  e anomalias de campo"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0f4f0;strokeColor=#c8e6c9;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="250" y="275" width="205" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- ── PROPOSTA DE VALOR ── -->
+        <mxCell id="v-h" value="Proposta de Valor"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#2d6a2d;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=11;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="455" y="50" width="210" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="v-c" value="• Alertas em tempo real 24/7&#xa;  (infestação, irrigação,&#xa;  temperatura)&#xa;&#xa;• Redução de 15–30% nas&#xa;  perdas de colheita&#xa;&#xa;• Decisão orientada a dados&#xa;  sem necessidade de TI&#xa;&#xa;• Dashboard intuitivo via&#xa;  browser&#xa;&#xa;• Relatórios automáticos&#xa;  e rastreáveis&#xa;&#xa;• Escalável: 1 talhão a&#xa;  centenas de fazendas"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f5e9;strokeColor=#4caf50;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="455" y="80" width="210" height="370" as="geometry" />
+        </mxCell>
+
+        <!-- ── RELACIONAMENTO ── -->
+        <mxCell id="rel-h" value="Relacionamento"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="665" y="50" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-c" value="• Autoatendimento digital&#xa;&#xa;• Gerente de conta dedicado&#xa;  (clientes Enterprise)&#xa;&#xa;• Suporte via WhatsApp&#xa;&#xa;• Comunidade online&#xa;  de produtores"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0f4f0;strokeColor=#c8e6c9;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="665" y="80" width="200" height="165" as="geometry" />
+        </mxCell>
+
+        <!-- ── CANAIS ── -->
+        <mxCell id="ch-h" value="Canais"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="665" y="245" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ch-c" value="• SaaS direto + trial 30 dias&#xa;&#xa;• Parceria com cooperativas&#xa;&#xa;• Feiras: Agrishow,&#xa;  Show Rural Coopavel&#xa;&#xa;• Revendas de insumos"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0f4f0;strokeColor=#c8e6c9;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="665" y="275" width="200" height="175" as="geometry" />
+        </mxCell>
+
+        <!-- ── SEGMENTOS DE CLIENTES ── -->
+        <mxCell id="seg-h" value="Segmentos de Clientes"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="865" y="50" width="205" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="seg-c" value="• Médios produtores rurais&#xa;  (50–500 ha)&#xa;&#xa;• Grandes grupos agrícolas&#xa;  (múltiplas fazendas)&#xa;&#xa;• Cooperativas agrícolas&#xa;  (gestão coletiva)&#xa;&#xa;• Integradores de&#xa;  agronegócio"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0f4f0;strokeColor=#c8e6c9;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="865" y="80" width="205" height="370" as="geometry" />
+        </mxCell>
+
+        <!-- ── ESTRUTURA DE CUSTOS ── -->
+        <mxCell id="cost-h" value="Estrutura de Custos"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="455" width="510" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cost-c" value="• Infraestrutura de nuvem (AWS / Azure): ~35% dos custos operacionais&#xa;• Equipe de P&amp;D (engenharia + agrônomos consultores): ~30%&#xa;• Suporte e Customer Success: ~15%&#xa;• Vendas e marketing (feiras, digital): ~12%&#xa;• Integrações e licenças de API: ~8%"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#fff7ed;strokeColor=#fdba74;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="50" y="485" width="510" height="155" as="geometry" />
+        </mxCell>
+
+        <!-- ── FONTES DE RECEITA ── -->
+        <mxCell id="rev-h" value="Fontes de Receita"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#1a4d1a;fontColor=#ffffff;strokeColor=#1a4d1a;fontStyle=1;fontSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="560" y="455" width="510" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="rev-c" value="• SaaS Starter: R$ 299/mês — até 5 talhões&#xa;• SaaS Pro: R$ 799/mês — até 20 talhões&#xa;• Enterprise: sob consulta (grandes operações e cooperativas)&#xa;• Fee de implantação e customização: R$ 1.500 – 5.000&#xa;• Licenciamento de API para ERPs agrícolas e seguradoras"
+          style="rounded=0;whiteSpace=wrap;html=0;fillColor=#f0fdf4;strokeColor=#86efac;fontSize=9;verticalAlign=top;align=left;spacingTop=8;spacingLeft=8;"
+          vertex="1" parent="1">
+          <mxGeometry x="560" y="485" width="510" height="155" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
